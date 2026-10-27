@@ -32,14 +32,31 @@ def say(text: str = "") -> None:
 
 
 def main() -> int:
+    """Always writes the report — including error paths — so the result can
+    be read back without copy-pasting anything."""
+    try:
+        return _run()
+    except SystemExit:
+        raise
+    except Exception as exc:  # crash: put the traceback in the report too
+        import traceback
+
+        say(f"CRASH   : {type(exc).__name__}: {exc}")
+        say(traceback.format_exc())
+        return 1
+    finally:
+        _flush()
+
+
+def _run() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     try:
         from huggingface_hub import HfApi
     except ImportError:
-        print("huggingface_hub is missing. Run:")
-        print("  .venv\\Scripts\\python.exe -m pip install -U huggingface_hub")
+        say("huggingface_hub is missing. Run:")
+        say("  .venv\\Scripts\\python.exe -m pip install -U huggingface_hub")
         return 1
 
     keep_private = "--keep-private" in sys.argv
@@ -51,14 +68,16 @@ def main() -> int:
             "Hugging Face token (same one you used to deploy): "
         ).strip()
     if not token:
-        print("No token given.")
+        say("token   : NONE GIVEN (press Enter pastes nothing — paste the token)")
         return 1
 
     api = HfApi(token=token)
     try:
         user = api.whoami().get("name")
     except Exception as exc:
-        print(f"Token rejected: {exc}")
+        say(f"token   : REJECTED ({exc})")
+        say("fix     : make a new token at https://huggingface.co/settings/tokens")
+        say("          (role: write) and paste it at the prompt")
         return 1
     repo_id = f"{user}/cgate-mri"
     say(f"account : {user}")
@@ -69,7 +88,6 @@ def main() -> int:
     except Exception as exc:
         say(f"space   : NOT FOUND ({exc})")
         say("fix     : run  .venv\\Scripts\\python.exe deploy\\create_space.py")
-        _flush()
         return 1
 
     say(f"sdk     : {getattr(info, 'sdk', '?')}")
@@ -130,7 +148,6 @@ def main() -> int:
     say("")
     say(f"space page: https://huggingface.co/spaces/{repo_id}")
     say(f"demo url  : https://{repo_id.replace('/', '-').lower()}.hf.space")
-    _flush()
     return 0
 
 
