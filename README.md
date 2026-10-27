@@ -77,6 +77,17 @@ Open `http://127.0.0.1:5000/` in your browser.
 
 See [`START_HERE.md`](START_HERE.md) for additional setup instructions and requirements.
 
+## Live Deployment (Free, Always-On)
+
+The demo runs as a **Hugging Face Docker Space** built from this repository:
+
+* **Space:** https://huggingface.co/spaces/krishpatel1220/cgate-mri
+* **Demo URL:** https://krishpatel1220-cgate-mri.hf.space (available after the ~10 minute build)
+* The 174 MB `runs/system_B6.pkl` is fetched during the image build from the [`v1` release](https://github.com/krishpatel1220/CGate-MRI/releases/tag/v1), because GitHub's per-file limit keeps it out of git.
+* **Ship an update:** run `.\.venv\Scripts\python.exe deploy\create_space.py` — it prompts for a Hugging Face *write* token (create one at https://huggingface.co/settings/tokens), copies this project to the Space and pushes; the cloud then rebuilds it.
+
+On the free tier expect CPU-only inference (a case takes a minute or two, versus seconds locally), the optional VLM is not installed there — the report page reports it as `unavailable` rather than faking phrases — and results live in memory, so they reset when the Space restarts.
+
 ## Dataset and Model
 
 This project uses the BraTS 2021 brain MRI dataset for research evaluation.

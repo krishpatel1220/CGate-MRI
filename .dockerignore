@@ -1,0 +1,18 @@
+# Never put these in the image build context:
+.git
+.venv
+data
+Network-Intrusion-Detection-System
+**/__pycache__
+**/.pytest_cache
+*.zip
+*.pyc
+
+# 11 GB of bulk artifacts (the Space only needs the model, which the
+# Dockerfile downloads from the GitHub Release):
+runs/cache
+runs/table
+runs/uploads
+runs/test_uploads
+runs/_zip_staging
+runs/system_B6.pkl
