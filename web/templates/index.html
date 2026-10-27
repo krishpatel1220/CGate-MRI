@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="hero">
+  <h1>CGate-MRI</h1>
+  <p class="tagline">Quality-aware expert routing and confidence gating for
+     brain-tumor MRI finding prediction &mdash; with reports you can trace
+     back to the numbers that produced them.</p>
+  <p><a class="btn btn-primary" href="/analyze">Analyze an MRI scan &rarr;</a></p>
+</section>
+
+<section class="card">
+  <h2>How the pipeline works</h2>
+  <ol class="steps">
+    <li><strong>Upload a case.</strong> Four co-registered sequences
+        (t1, t1ce, t2, flair) as a .zip of BraTS-style .nii/.nii.gz files,
+        or one 4-D .nii/.nii.gz.</li>
+    <li><strong>Image quality.</strong> Seven quality metrics (SNR, bias field,
+        motion artefacts &hellip;) are computed from the FLAIR volume &mdash;
+        the same metrics that steer the model at inference time.</li>
+    <li><strong>Three experts predict the findings.</strong>
+        A radiomics model on texture features, a CNN and a ViT, each reading
+        16 cached slices of the scan. Five structured findings are predicted
+        (edema, enhancing tumor, necrosis &hellip;).</li>
+    <li><strong>Routing and gating.</strong>
+        A quality router combines the three experts according to this scan's
+        quality profile; a confidence gate then decides whether the case is
+        <em>released</em> or <em>deferred</em> for review.</li>
+    <li><strong>Grounded report.</strong> Every sentence in the report is tied
+        to the evidence that produced it (a probability, a quality metric, or
+        the gate decision). Optional VLM phrases are vetted by veto rules
+        before they may appear.</li>
+  </ol>
+</section>
+
+<section class="card">
+  <h2>The trained system behind this demo</h2>
+  <ul class="stats">
+    <li><span class="stat-num">1,251</span><span class="stat-label">BraTS 2021 cases trained on</span></li>
+    <li><span class="stat-num">0.660</span><span class="stat-label">test accuracy (B6 system)</span></li>
+    <li><span class="stat-num">85.2%</span><span class="stat-label">of cases released by the gate</span></li>
+    <li><span class="stat-num">30%</span><span class="stat-label">error among released cases (was 34% without the gate)</span></li>
+  </ul>
+  <p class="muted">System B6 &mdash; radiomics + CNN + ViT, quality-routed
+     (the project's proposed method). The demo runs the real fitted model on
+     your uploaded scan; nothing on these pages is precomputed or mocked.</p>
+</section>
+
+{% endblock %}

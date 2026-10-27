@@ -1,0 +1,89 @@
+Loading cases ...
+Saved case table to C:\Users\abc\Documents\Default Project\runs\table
+  1251 cases, IQM features: ['cjv', 'efc', 'snr', 'sharpness', 'inu', 'contrast', 'entropy']
+  view texture  dim=52
+  view local    dim=72
+  view global   dim=100
+  view volume   dim=1
+
+Cohorts: {'high': 1251}
+
+Splits (patient-level, protocol=stratified):
+  train  {'n_cases': 751, 'strata': {'high': 751}}
+  calib  {'n_cases': 250, 'strata': {'high': 250}}
+  test   {'n_cases': 250, 'strata': {'high': 250}}
+
+Thresholds: et_present >= 500 voxels (fixed), ncr_present >= 7,530 voxels (fitted on train)
+
+Label prevalence (all cases):
+  et_present    absent=0.04  present=0.96
+  ncr_present   absent=0.51  present=0.49
+  laterality    left=0.48  right=0.43  bilateral=0.10
+  burden        small=0.32  medium=0.35  large=0.33
+  et_fraction   low=0.33  mid=0.32  high=0.35
+
+Experts: REAL torch backbones on cuda (pretrained=True, 12 epochs)
+  CNN: resnet50 @ 128px
+  ViT: vit_small_patch16_224 @ 224px
+  batch=32  amp=True
+  GPU: NVIDIA GeForce RTX 4070 (12.9 GB)
+
+Running ablations:
+  [B0] Single expert, raw softmax ... acc=0.620 AURC=0.2927
+  [B1] Single expert + temperature scaling ... acc=0.620 AURC=0.2981
+  [B2] Sampling-based uncertainty (MC dropout) ... acc=0.604 AURC=0.3044
+  [B3] Homogeneous 3x deep ensemble ... acc=0.596 AURC=0.2662
+  [B4] Heterogeneous experts, uniform fusion ... acc=0.620 AURC=0.2289
+  [B5] Heterogeneous experts, confidence-weighted fusion ... acc=0.636 AURC=0.2572
+  [B6] Heterogeneous experts, quality-aware routing (ours) ... acc=0.660 AURC=0.2167
+
+Router capacity: 120 parameters fitted on 125 cases (0.96 per case)
+
+key  system                                            acc     ECE     AURC   E-AURC  risk@80%
+----------------------------------------------------------------------------------------------
+B0   Single CNN, raw softmax                         0.620  0.0354   0.2927   0.2083     0.335
+B1   Single CNN + temperature scaling                0.620  0.0563   0.2981   0.2137     0.350
+B2   MC dropout (dropout active at inference)        0.604  0.0337   0.3044   0.2121     0.375
+B3   Homogeneous 3x CNN deep ensemble                0.596  0.0626   0.2662   0.1699     0.345
+B4   Radiomics + CNN + ViT, uniform fusion           0.620  0.0706   0.2289   0.1445     0.330
+B5   Radiomics + CNN + ViT, confidence-weighted      0.636  0.0500   0.2572   0.1803     0.300
+B6   Radiomics + CNN + ViT, quality-routed (ours)    0.660  0.0651   0.2167   0.1503     0.280
+
+cohort = high
+key  system                                      n    acc     AURC   E-AURC  risk@80%
+-------------------------------------------------------------------------------------
+B0   Single CNN, raw softmax                   250  0.620   0.2927   0.2083     0.335
+B1   Single CNN + temperature scaling          250  0.620   0.2981   0.2137     0.350
+B2   MC dropout (dropout active at inference)  250  0.604   0.3044   0.2121     0.375
+B3   Homogeneous 3x CNN deep ensemble          250  0.596   0.2662   0.1699     0.345
+B4   Radiomics + CNN + ViT, uniform fusion     250  0.620   0.2289   0.1445     0.330
+B5   Radiomics + CNN + ViT, confidence-weight  250  0.636   0.2572   0.1803     0.300
+B6   Radiomics + CNN + ViT, quality-routed (o  250  0.660   0.2167   0.1503     0.280
+
+Gate operating points (threshold chosen on calibration, applied to test):
+  B0: threshold=0.5348  coverage=77.2%  error 38.0% -> 32.6% (+14.1% relative)  deferred 57/250
+  B1: threshold=0.5502  coverage=74.0%  error 38.0% -> 33.5% (+11.8% relative)  deferred 65/250
+  B2: threshold=0.5522  coverage=73.6%  error 39.6% -> 35.3% (+10.8% relative)  deferred 66/250
+  B3: threshold=0.5539  coverage=75.2%  error 40.4% -> 33.0% (+18.4% relative)  deferred 62/250
+  B4: threshold=0.5703  coverage=80.4%  error 38.0% -> 32.8% (+13.6% relative)  deferred 49/250
+  B5: threshold=0.5849  coverage=82.4%  error 36.4% -> 31.6% (+13.3% relative)  deferred 44/250
+  B6: threshold=0.5506  coverage=85.2%  error 34.0% -> 30.0% (+11.6% relative)  deferred 37/250
+
+Headline comparison  B6 (quality-routed) vs B4 (uniform fusion), paired bootstrap n=2000:
+  overall      dAURC=-0.0122 95% CI [-0.0464, +0.0230]  p=0.493  -> no significant difference
+  cohort=high  dAURC=-0.0122 95% CI [-0.0464, +0.0230]  p=0.493  -> no significant difference
+
+  Negative dAURC favours B6. A CI crossing zero means routing did not
+  measurably beat uniform fusion on this data -- which is a real result,
+  not a failure to report.
+
+Figures written to C:\Users\abc\Documents\Default Project\runs\figs:
+  risk_coverage_overall.png
+  risk_coverage_high.png
+  reliability.png
+
+Wrote C:\Users\abc\Documents\Default Project\runs\predictions.json (250 test cases, 213 released / 37 deferred; render with cgate-report)
+
+Wrote C:\Users\abc\Documents\Default Project\runs\brats_full_seed0.json
+
+Done in 17663.8s

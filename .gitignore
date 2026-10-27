@@ -1,0 +1,38 @@
+# Virtual environment (3.6 GB, rebuilt from pyproject.toml)
+.venv/
+
+# BraTS dataset (12.7 GB) — registration-gated, must never be redistributed
+data/
+
+# Python / test noise
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Bulk pipeline artifacts: slice cache + case table (11 GB). The web demo
+# only needs runs/system_B6.pkl (see below) and reads the cache config with
+# a safe default if index.json is absent.
+runs/cache/
+runs/table/
+
+# Uploads: user scans go here at runtime, and the test fixtures are derived
+# from BraTS data (rebuild them locally with web/test_demo.py)
+runs/uploads/
+runs/test_uploads/
+
+# The fitted model: 174 MB exceeds GitHub's 100 MB file limit and is
+# regenerable with tools/save_system.py on a machine that has runs/table
+# and runs/cache. See START_HERE.md / web/README.md.
+runs/system_B6.pkl
+
+# Staging + generated deliverables
+runs/_zip_staging/
+*.zip
+
+# The unrelated project stored in this folder (it has its own repo)
+Network-Intrusion-Detection-System/
+
+# OS / editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store

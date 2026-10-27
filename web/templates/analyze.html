@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}MRI analysis &mdash; CGate-MRI{% endblock %}
+{% block content %}
+
+<h1>MRI analysis</h1>
+{% if msg %}<div class="banner banner-warn">{{ msg }}</div>{% endif %}
+
+<!-- A. upload ---------------------------------------------------------- -->
+<section class="card" id="upload-card">
+  <h2>1. Upload an MRI case</h2>
+  <p class="muted">Supported, either way round:<br>
+     &bull; a <strong>.zip</strong> containing one case's four
+     sequences (<code>*_t1.nii.gz</code>, <code>*_t1ce.nii.gz</code>,
+     <code>*_t2.nii.gz</code>, <code>*_flair.nii.gz</code>), or<br>
+     &bull; the <strong>four .nii/.nii.gz files selected together</strong>
+     (hold <kbd>Ctrl</kbd>/<kbd>Cmd</kbd> in the file dialog), or<br>
+     &bull; a single <strong>4-D</strong> <code>.nii/.nii.gz</code> with the
+     four sequences.<br>
+     Volumes must be skull-stripped and co-registered (BraTS style).</p>
+  <form id="upload-form">
+    <input type="file" id="file-input" name="file" accept=".zip,.nii,.gz" multiple required>
+    <span class="muted" id="file-count"></span>
+    <button class="btn btn-primary" type="submit" id="upload-btn">Upload</button>
+  </form>
+  <div class="error" id="upload-error" hidden></div>
+</section>
+
+<!-- B. preview + analyze ---------------------------------------------- -->
+<section class="card" id="preview-card" hidden>
+  <h2>2. Run the analysis</h2>
+  <div class="preview-row">
+    <figure>
+      <img id="preview-img" alt="Uploaded case, four-sequence mosaic">
+      <figcaption>Middle slice, all four sequences as read by the model
+                  (t1 &middot; t1ce &middot; t2 &middot; flair)</figcaption>
+    </figure>
+    <div class="preview-meta">
+      <p><span class="muted">Case</span><br><strong id="case-id">-</strong></p>
+      <label class="check">
+        <input type="checkbox" id="use-vlm">
+        Include VLM phrases (Qwen2-VL-2B, ~4&nbsp;GB GPU, a few seconds extra)
+      </label>
+      <button class="btn btn-primary" id="analyze-btn" type="button">Analyze</button>
+      <div class="loading" id="loading" hidden>
+        <span class="spinner"></span>
+        <span id="loading-text">Running radiomics, CNN and ViT experts, then
+        quality routing and the confidence gate&hellip;</span>
+      </div>
+    </div>
+  </div>
+  <div class="error" id="analyze-error" hidden></div>
+</section>
+
+<!-- C. results --------------------------------------------------------- -->
+<section class="results" id="results" hidden>
+
+  <div class="banner" id="gate-banner">
+    <span class="badge" id="gate-badge">-</span>
+    <span id="gate-text"></span>
+  </div>
+
+  <section class="card">
+    <h2>Confidence gate</h2>
+    <div class="gatebar">
+      <div class="gatebar-fill" id="conf-fill"></div>
+      <div class="gatebar-threshold" id="conf-threshold" title="gate threshold"></div>
+    </div>
+    <p class="muted" id="conf-caption"></p>
+  </section>
+
+  <section class="card">
+    <h2>Predicted findings</h2>
+    <table class="findings" id="findings-table">
+      <thead><tr><th>Finding</th><th>Prediction</th><th>Probability</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card" id="routing-card">
+    <h2>Routing decision <span class="muted">(expert weights from the quality router)</span></h2>
+    <table class="routing" id="routing-table">
+      <thead><tr><th>Finding</th><th>Radiomics</th><th>CNN</th><th>ViT</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="muted" id="quality-note"></p>
+  </section>
+
+  <section class="card" id="vlm-card" hidden>
+    <h2>VLM phrases <span class="muted">(advisory, vetted)</span></h2>
+    <p class="muted" id="vlm-status"></p>
+    <ul class="phrases" id="vlm-phrases"></ul>
+    <ul class="phrases vetoed" id="vlm-vetoed"></ul>
+  </section>
+
+  <p class="actions">
+    <a class="btn btn-primary" id="report-link" href="#">View full report &rarr;</a>
+    <a class="btn" href="/analyze">Analyze another scan</a>
+  </p>
+</section>
+
+{% endblock %}

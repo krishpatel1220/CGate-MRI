@@ -1,0 +1,148 @@
+{
+  "patient_id": "BraTS2021_00753",
+  "cohort": "high",
+  "released": true,
+  "confidence": 0.8057931263826119,
+  "gate_threshold": 0.5506190066529876,
+  "predicted": {
+    "et_present": {
+      "class": "present",
+      "p": 0.9219630888680733
+    },
+    "ncr_present": {
+      "class": "absent",
+      "p": 0.8057931263826119
+    },
+    "laterality": {
+      "class": "left",
+      "p": 0.812567109608829
+    },
+    "burden": {
+      "class": "small",
+      "p": 0.9846459024937947
+    },
+    "et_fraction": {
+      "class": "low",
+      "p": 0.4209350128387579
+    }
+  },
+  "weakest_critical": {
+    "finding": "ncr_present",
+    "class": "absent",
+    "p": 0.8057931263826119
+  },
+  "vlm_model": null,
+  "vlm_phrases": [],
+  "vlm_rejected": [],
+  "sentences": [
+    {
+      "text": "Pre-operative multi-sequence MRI: axial T1, contrast-enhanced T1 (T1ce), T2 and FLAIR, co-registered, skull-stripped and resampled to 1 mm isotropic (BraTS preparation).",
+      "evidence": [
+        {
+          "source": "meta",
+          "detail": "brats-protocol"
+        }
+      ]
+    },
+    {
+      "text": "No necrotic / non-enhancing core exceeds the volume threshold (confidence 0.81).",
+      "evidence": [
+        {
+          "source": "finding:ncr_present",
+          "detail": "absent p=0.81"
+        }
+      ]
+    },
+    {
+      "text": "The whole-tumour mass is predominantly left-sided (confidence 0.81).",
+      "evidence": [
+        {
+          "source": "finding:laterality",
+          "detail": "left p=0.81"
+        }
+      ]
+    },
+    {
+      "text": "An enhancing tumour component is present (confidence 0.92).",
+      "evidence": [
+        {
+          "source": "finding:et_present",
+          "detail": "present p=0.92"
+        }
+      ]
+    },
+    {
+      "text": "Whole-tumour burden is assessed as small (volume tercile fitted on the training split; confidence 0.98).",
+      "evidence": [
+        {
+          "source": "finding:burden",
+          "detail": "small p=0.98"
+        }
+      ]
+    },
+    {
+      "text": "The enhancing fraction of the whole tumour is low (ET/WT tercile fitted on the training split; confidence 0.42). This finding is low-confidence and is hedged accordingly.",
+      "evidence": [
+        {
+          "source": "finding:et_fraction",
+          "detail": "low p=0.42"
+        }
+      ]
+    },
+    {
+      "text": "Acquisition quality (cjv, efc, snr, sharpness, inu, contrast, entropy) is mildly outside the training cohort range (mean |z| = 0.83); interpret borderline findings with corresponding caution.",
+      "evidence": [
+        {
+          "source": "iqm:cjv",
+          "detail": "mean|z|=0.83"
+        },
+        {
+          "source": "iqm:efc",
+          "detail": "mean|z|=0.83"
+        },
+        {
+          "source": "iqm:snr",
+          "detail": "mean|z|=0.83"
+        },
+        {
+          "source": "iqm:sharpness",
+          "detail": "mean|z|=0.83"
+        },
+        {
+          "source": "iqm:inu",
+          "detail": "mean|z|=0.83"
+        },
+        {
+          "source": "iqm:contrast",
+          "detail": "mean|z|=0.83"
+        },
+        {
+          "source": "iqm:entropy",
+          "detail": "mean|z|=0.83"
+        }
+      ]
+    },
+    {
+      "text": "Automated release: case confidence 0.81 meets the calibrated gate threshold 0.55.",
+      "evidence": [
+        {
+          "source": "gate",
+          "detail": "accepted c=0.81 t=0.55"
+        }
+      ]
+    },
+    {
+      "text": "Key findings: ncr_present absent (p=0.81); laterality left (p=0.81).",
+      "evidence": [
+        {
+          "source": "finding:ncr_present",
+          "detail": "absent p=0.81"
+        },
+        {
+          "source": "finding:laterality",
+          "detail": "left p=0.81"
+        }
+      ]
+    }
+  ]
+}
