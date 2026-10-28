@@ -417,6 +417,59 @@ class _TorchCacheSwap:
         return False
 
 
+def _load_system_payload():
+    """Unpickle the fitted system, on a GPU box or a CPU-only one.
+
+    The pickle was written on a GPU, so its torch storages remember
+    "cuda:0" and a plain pickle.load dies on any machine without CUDA
+    ("Attempting to deserialize object on a CUDA device ..."). torch
+    restores storages through torch.load under the hood, so we point
+    that load at the CPU and let each expert re-place its weights on
+    whatever device this host actually has (_place_torch_experts).
+    """
+    import torch
+
+    real_load = torch.load
+
+    def _cpu_load(*args, **kwargs):
+        kwargs.setdefault("map_location", torch.device("cpu"))
+        return real_load(*args, **kwargs)
+
+    torch.load = _cpu_load
+    try:
+        with open(SYSTEM_PKL, "rb") as fh:
+            return pickle.load(fh)
+    finally:
+        torch.load = real_load
+
+
+def _place_torch_experts(system) -> None:
+    """Move each torch expert's model to the best device available here.
+
+    After the CPU remap every expert's weights sit on the CPU and
+    expert.device still says "cuda" from fit time; re-resolve and move.
+    The radiomics expert has no model/device and is skipped.
+    """
+    try:
+        import torch
+    except ImportError:  # numpy-only host: nothing to place
+        return
+    for expert in getattr(system, "experts", ()):
+        model = getattr(expert, "model", None)
+        if model is None or not hasattr(model, "to"):
+            continue
+        try:
+            device = expert._resolve_device()
+        except Exception:
+            device = torch.device("cpu")
+        try:
+            model.to(device)
+        except Exception:  # e.g. GPU out of memory at load time
+            device = torch.device("cpu")
+            model.to(device)
+        expert.device = device
+
+
 def get_system():
     """Load the fitted B6 system once. Fails loudly if it was never saved."""
     global _SYSTEM
@@ -431,15 +484,15 @@ def get_system():
                 ".venv\\Scripts\\python.exe tools\\save_system.py"
             )
         try:
-            with open(SYSTEM_PKL, "rb") as fh:
-                payload = pickle.load(fh)
-        except Exception as exc:  # wrong env / CUDA missing / truncated file
+            payload = _load_system_payload()
+        except Exception as exc:  # truncated file / incompatible env
             raise InferenceError(
                 f"could not load runs/system_B6.pkl ({type(exc).__name__}: {exc}). "
-                "It must be read by the same Python/torch environment that wrote "
-                "it; re-fit with tools\\save_system.py if it is gone."
+                "The file may be truncated or written by an incompatible package "
+                "version; re-fit it with tools\\save_system.py if so."
             ) from exc
         _SYSTEM = payload["system"]
+        _place_torch_experts(_SYSTEM)
         _SYSTEM.fit_log = getattr(_SYSTEM, "fit_log", {})
         _SYSTEM.saved_stats = payload.get("stats", {})
         return _SYSTEM
@@ -503,6 +556,146 @@ def make_preview(table) -> str:
     preview_path = table.slice_cache.root.parent / "preview.png"
     build_mosaic(table.slice_cache.get(0)).save(preview_path)
     return f"/uploads/{table.slice_cache.root.parent.name}/preview.png"
+
+
+# ---------------------------------------------------------------------------
+# Tumor localization visualization (report page only; never touches experts,
+# calibration, the gate, or the report text). This project has NO segmentation
+# model -- the experts vote on findings, not voxels -- so the only mask a
+# report can honestly show is the BraTS ground-truth `*_seg.nii.gz` that came
+# with the upload. That is what is drawn, labelled as ground truth. With no
+# such file the report shows a plain message; a region is never invented.
+# ---------------------------------------------------------------------------
+
+
+def _find_seg_file(root: Path) -> Path | None:
+    """Locate a BraTS-style *_seg.nii* file anywhere below `root`, or None.
+
+    Same recursive, suffix-priority search the modality lookup uses, so a
+    zip that nests the case in a folder works too.
+    """
+    for pattern in ("*_seg.nii*", "*-seg.nii*"):
+        hits = sorted(p for p in root.rglob(pattern) if p.is_file())
+        if hits:
+            return hits[0]
+    return None
+
+
+def build_localization(table, work: Path) -> dict:
+    """Render the "original slice vs ground-truth mask" figure for the report.
+
+    Reuses exactly what the pipeline already computed for this upload: the
+    one-case slice cache (so the drawn slice is the one the networks read, at
+    the same windowing as the preview) and the same canonical-RAS loading as
+    preprocessing. Returns {"available": False, "reason": ...} whenever a real
+    overlay cannot be drawn -- a missing or mismatched mask is reported, never
+    faked. Any unexpected failure degrades to the same honest message rather
+    than breaking the upload.
+    """
+    try:
+        return _build_localization(table, work)
+    except Exception as exc:  # a cosmetic figure must never break an upload
+        return {
+            "available": False,
+            "reason": (
+                "the tumor-localization figure could not be rendered "
+                f"({type(exc).__name__}: {exc})."
+            ),
+        }
+
+
+def _build_localization(table, work: Path) -> dict:
+    _require_nib()
+    import nibabel as nib
+    from PIL import Image, ImageDraw
+
+    from cgate.reporting.vlm import _to_uint8
+    from cgate.schema import LABEL_ED, LABEL_ET, LABEL_NCR
+
+    # (BraTS label value, fill colour, region name) -- the values are the
+    # schema's, never re-declared here.
+    legend = (
+        (int(LABEL_NCR), "#e5484d", "Necrotic core (NCR)"),
+        (int(LABEL_ED), "#3b82f6", "Peritumoral edema (ED)"),
+        (int(LABEL_ET), "#f5c518", "Enhancing tumor (ET)"),
+    )
+
+    seg_path = _find_seg_file(work)
+    if seg_path is None:
+        return {
+            "available": False,
+            "reason": (
+                "No compatible segmentation was uploaded. CGate-MRI predicts "
+                "per-finding probabilities, not voxel masks, so there is no "
+                "predicted tumor region to show, and this upload contained no "
+                "ground-truth BraTS mask (*_seg.nii.gz) to overlay. Upload a "
+                "case folder that includes its _seg.nii.gz file to see the "
+                "ground-truth localization."
+            ),
+        }
+
+    cache = table.slice_cache
+    row = int(cache.rows_for(list(table.patient_ids))[0])
+    slice_indices = cache.index["slice_indices"][row]
+    idx = len(slice_indices) // 2  # the slice the preview mosaic shows
+    z = int(slice_indices[idx])  # that slice's index inside the 3-D volume
+
+    # Loaded exactly like the four sequences (canonical RAS), so the mask
+    # lines up voxel-for-voxel with the volumes the pipeline read.
+    seg = np.asarray(nib.as_closest_canonical(nib.load(str(seg_path))).dataobj)
+    if seg.ndim != 3 or seg.shape[2] <= z:
+        return {
+            "available": False,
+            "reason": (
+                f"The segmentation {seg_path.name} has shape {seg.shape}, "
+                "which does not match the uploaded sequences; no overlay was "
+                "drawn rather than a misleading one."
+            ),
+        }
+    labels = np.rint(seg[:, :, z]).astype(np.int64)
+
+    # Base image: the exact cached t1ce slice the networks read (index 1 of
+    # MODALITY_ORDER), windowed with the same function as the preview.
+    base = _to_uint8(cache.get_slice(row, idx)[1])
+    h, w = base.shape
+    gap, label_h = 6, 26
+    canvas = Image.new("RGB", (2 * w + gap, h + label_h), "black")
+    original = Image.fromarray(base).convert("RGB")
+    overlay = np.array(original)
+    shown: list[tuple[str, str]] = []
+    for value, colour, name in legend:
+        hit = labels == value
+        if not hit.any():
+            continue
+        rgb = tuple(int(colour[i : i + 2], 16) for i in (1, 3, 5))
+        overlay[hit] = (0.6 * overlay[hit] + 0.4 * np.asarray(rgb)).astype(
+            np.uint8
+        )
+        shown.append((colour, name))
+    if not shown:
+        return {
+            "available": False,
+            "reason": (
+                f"The ground-truth mask {seg_path.name} contains no labeled "
+                f"tumor on the displayed slice {z}, so there is nothing to "
+                "overlay on it."
+            ),
+        }
+    canvas.paste(original, (0, label_h))
+    canvas.paste(Image.fromarray(overlay), (w + gap, label_h))
+    draw = ImageDraw.Draw(canvas)
+    draw.text((6, 8), f"T1ce - original (slice {z})", fill="yellow")
+    draw.text((w + gap + 6, 8), "T1ce + ground-truth mask", fill="yellow")
+
+    canvas.save(work / "localization.png")
+    return {
+        "available": True,
+        "url": f"/uploads/{work.name}/localization.png",
+        "labels": [{"color": c, "name": n} for c, n in shown],
+        "slice": z,
+        "source": "ground-truth",
+        "file": seg_path.name,
+    }
 
 
 def analyze(table, use_vlm: bool = False) -> dict:

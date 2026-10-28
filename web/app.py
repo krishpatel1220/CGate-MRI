@@ -54,8 +54,9 @@ app.config["MAX_CONTENT_LENGTH"] = 400 * 1024 * 1024  # zips of one case are ~50
 
 UPLOADS = WS / "runs" / "uploads"
 
-# token -> {"pid", "table", "preview_url", "result", "report", "md", "json",
-#           "vlm_status"}. In-memory on purpose: no database for a demo.
+# token -> {"pid", "table", "preview_url", "localization", "result", "report",
+#           "md", "json", "vlm_status"}. In-memory on purpose: no database for
+#           a demo.
 RESULTS: dict[str, dict] = {}
 MAX_SESSIONS = 20
 
@@ -88,6 +89,7 @@ def report_page(token: str):
         confidence=entry["result"]["confidence"],
         threshold=entry["result"]["gate_threshold"],
         vlm_status=entry.get("vlm_status", "not requested"),
+        localization=entry.get("localization"),
         sections_html=_report_sections_html(entry["report"]),
         rejected_html=_rejected_html(entry["report"]),
         ledger=_ledger_rows(entry["report"]),
@@ -144,6 +146,7 @@ def api_upload():
             vols, pid = inference.validate_upload_many(saved, work)
         table = inference.build_case_table(vols, pid, work)
         preview_url = inference.make_preview(table)
+        localization = inference.build_localization(table, work)
     except inference.UploadError as exc:
         shutil.rmtree(work, ignore_errors=True)
         return jsonify(error=str(exc)), 400
@@ -157,6 +160,7 @@ def api_upload():
         "pid": pid,
         "table": table,
         "preview_url": preview_url,
+        "localization": localization,
         "result": None,
         "report": None,
         "md": None,

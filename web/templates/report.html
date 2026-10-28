@@ -36,6 +36,35 @@
   </table>
 </section>
 
+{% if localization %}
+<section class="card">
+  <h2>Tumor localization</h2>
+  {% if localization.available %}
+  <p class="muted">
+    <span class="badge badge-warn">GROUND TRUTH</span>
+    The manual BraTS segmentation (<span class="mono">{{ localization.file }}</span>,
+    slice {{ localization.slice }} &mdash; the same slice shown in the preview)
+    blended over the uploaded T1ce image. CGate-MRI predicts per-finding
+    probabilities and contains <strong>no segmentation model</strong>, so this is
+    reference annotation from the upload &mdash; <strong>not a predicted mask</strong>.
+  </p>
+  <figure>
+    <img class="loc-figure" src="{{ localization.url }}"
+         alt="Original T1ce slice next to the same slice with the ground-truth tumor mask overlaid">
+    <figcaption>Left: the uploaded T1ce slice as the pipeline reads it.
+      Right: the identical slice with the ground-truth mask blended over it.</figcaption>
+  </figure>
+  <ul class="loc-legend">
+    {% for lab in localization.labels %}
+    <li><span class="loc-chip" style="background: {{ lab.color }}"></span>{{ lab.name }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{{ localization.reason }}</p>
+  {% endif %}
+</section>
+{% endif %}
+
 <p class="actions">
   <a class="btn btn-primary" href="/download/{{ token }}/md">Download report (.md)</a>
   <a class="btn" href="/download/{{ token }}/json">Evidence + ledger (.json)</a>

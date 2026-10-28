@@ -20,6 +20,9 @@ What it checks (nothing is mocked):
   6. the same case uploaded as FOUR separate .nii.gz files (no zip) gives
      the same reference-matching result
   7. with --vlm: the VLM phrase pass runs (or reports itself unavailable)
+  8. the report page shows the ground-truth tumor-mask overlay when the
+     upload includes a *_seg.nii.gz, and an honest "no segmentation"
+     message when it does not (no fabricated region either way)
 """
 
 from __future__ import annotations
@@ -264,6 +267,38 @@ def main() -> int:
         and abs(r2["confidence"] - r1["confidence"]) > 1e-6,
         f"conf {r1['confidence']:.3f} vs {r2['confidence']:.3f}, "
         f"gate {r1['accepted']} vs {r2['accepted']}",
+    )
+
+    print("\n3b. Tumor localization visualization (report page)")
+    status, body = get(f"/report/{r2['_token']}")
+    html2 = body.decode("utf8", "replace")
+    check(
+        "case uploaded WITH its seg mask shows the localization section",
+        status == 200 and "Tumor localization" in html2,
+    )
+    check(
+        "overlay figure rendered from the upload's own ground-truth mask",
+        "localization.png" in html2 and "GROUND TRUTH" in html2,
+    )
+    check(
+        "legend lists the regions actually on the slice (edema only here)",
+        "loc-legend" in html2
+        and "loc-chip" in html2
+        and "Peritumoral edema" in html2,
+        "case 00005 middle slice carries only ED voxels; the legend shows "
+        "exactly the regions present, never a fixed set",
+    )
+    check(
+        "ground truth distinguished from a predicted segmentation",
+        "not a predicted mask" in html2,
+    )
+    status, body = get(f"/report/{r1['_token']}")
+    html1 = body.decode("utf8", "replace")
+    check(
+        "case WITHOUT a seg mask gets the honest message, no fake region",
+        status == 200
+        and "No compatible segmentation" in html1
+        and "localization.png" not in html1,
     )
 
     print("\n4. Report page and downloads")
