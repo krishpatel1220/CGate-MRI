@@ -23,7 +23,7 @@ one in-memory session dict.
 |--------|-------|
 | Python **3.10+** (3.11 used here) | `python --version` |
 | ~4 GB disk for the virtualenv | torch is the big one |
-| GPU | optional — CPU works, slower; needed only for the optional VLM |
+| GPU | optional — CPU works, slower; needed only for the optional VLM. The shipped model file loads fine without a GPU. |
 | The BraTS dataset | **not needed to run or test** — only to retrain |
 
 ## 2. Install (PowerShell on Windows, bash on Linux/mac)
@@ -69,6 +69,12 @@ Put the fitted model at **`runs/system_B6.pkl`** (~174 MB).
 Open **http://127.0.0.1:5000/** — Home → MRI analysis (upload a case from
 `runs/test_uploads/`, e.g. `BraTS2021_00009_demo.zip`) → Generated report.
 
+The report page also shows a **Tumor Localization** panel below the grounding
+ledger: upload `runs/test_uploads/BraTS2021_00005.zip` (it carries the
+ground-truth `_seg.nii.gz`) to see the uploaded T1ce slice next to the same
+slice with the mask overlaid. Uploads without a mask get an honest
+"no segmentation" message instead of a faked region.
+
 ### On a remote server (so others can open it)
 
 `web/app.py` binds `127.0.0.1` on purpose (local demo). To serve it to
@@ -89,8 +95,8 @@ If port 5000 is busy, change `port=5000` in `web/app.py`.
 ## 5. Test (proves the live site reproduces the research numbers)
 
 ```powershell
-.\.venv\Scripts\python.exe web\test_demo.py          # 24 checks
-.\.venv\Scripts\python.exe web\test_demo.py --vlm    # 29 checks (needs GPU + transformers)
+.\.venv\Scripts\python.exe web\test_demo.py          # 29 checks
+.\.venv\Scripts\python.exe web\test_demo.py --vlm    # 34 checks (needs GPU + transformers)
 ```
 
 The key line — the website's answer for an uploaded scan must match the
