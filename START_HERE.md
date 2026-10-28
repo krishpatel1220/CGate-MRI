@@ -138,7 +138,7 @@ the science:
   with `cgate run` on BraTS (dataset registration required; it cannot be
   redistributed with this bundle).
 
-## 8. Honest limitations (say these if asked)
+## 8.limitations 
 
 Research prototype for a final-year project — **not a medical device, not for
 clinical use**. Uploaded cases are analysed without ground truth; accuracy
